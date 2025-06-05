@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+
+
+
+
+<head>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            padding: 15px;
+            width: 320px;
+            border-radius: 24px;
+            box-shadow: 0 4px 12px rgba(141, 0, 0, 0.5);
+            background-color: #fff;
+        }
+
+        title {
+            font-family: 'Open Sans', sans-serif;
+            font-family: 'Product Sans';
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #262323;            
+        }
+
+        h3 {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 24px;
+            margin-bottom: 10px;
+            padding-left: 5px;
+            color: #262323;
+        }
+
+        .category-input {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .category-input input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 8px 12px;
+            font-size: 14px;
+            margin-top: 6px;
+            margin-right: 8px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background-color: #d7755a;
+            color: white;
+            transition: background-color 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #8a291a;
+        }
+
+        #remove-category {
+            background-color: #dc3545;
+        }
+
+        #remove-category:hover {
+            background-color: #a71d2a;
+        }
+
+        #status {
+            margin-top: 12px;
+            font-size: 14px;
+            color: green;
+        }
+    </style>
+
+    <title>Smart Gmail Sorter</title>
+
+</head>
+
+<body>
+    <h3>Smart Email Categories</h3>
+    <div id = "category-list">
+
+    </div>
+    <button id = "add-category">+ Add Category</button>
+    <button id="run">Sort Emails</button>
+    <div id ="status"></div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
