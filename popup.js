@@ -2,9 +2,11 @@ var categoryList = document.getElementById('category-list');
 var addCategoryButton = document.getElementById('add-category');
 
 function saveCategories() {
-  const inputs = document.querySelectorAll('.category-input input');
-  const categories = Array.from(inputs).map(input => input.value);
-  chrome.storage.local.set({ savedCategories: categories });
+    const inputs = document.querySelectorAll('.category-input input');
+    const categories = Array.from(inputs)
+    .map(input => input.value)
+    .filter(val => val.length > 0);
+    chrome.storage.local.set({ savedCategories: categories });
 }
 
 window.addEventListener('unload', saveCategories); //save categories on close
@@ -16,7 +18,14 @@ function loadCategories() {
     // Clear any default inputs first
     document.getElementById('category-list').innerHTML = '';
 
-    categories.forEach(cat => addCategoryInput(cat));
+    if (categories.length === 0) {
+      addCategoryInput();
+      addCategoryInput();
+      addCategoryInput();
+    }
+    else {
+      categories.forEach(cat => addCategoryInput(cat));
+    }
   });
 }
 
@@ -32,14 +41,6 @@ function addCategoryInput(value = '') {
     input.type = 'text';
     input.placeholder = 'Category name';
     input.value = value;
-
-    if (categories.length === 0) {
-      addCategoryInput();
-      addCategoryInput();
-      addCategoryInput();
-    } else {
-      categories.forEach(cat => addCategoryInput(cat));
-    }
 
     const removeButton = document.createElement('button');
     removeButton.textContent = 'X';

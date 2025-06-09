@@ -6,7 +6,8 @@
     "permissions":[
         "identity",
         "storage",
-        "scripting"
+        "scripting",
+        "activeTab"
     ],
     "host_permissions": [
             "https://gmail.googleapis.com/*",
@@ -15,7 +16,7 @@
     ],
     "content_scripts" :[
         {
-            "matches": ["https://mail.google.com/*"],
+            "matches": ["*://mail.google.com/*"],
             "js": ["content.js"],
             "run_at": "document_idle"            
         }

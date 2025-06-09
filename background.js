@@ -1,5 +1,7 @@
 //Required to authorize acces to gmail API
-const OPENROUTER_API_KEY = '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'; //free-tier key
+//const OPENROUTER_API_KEY = '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'; //free-tier key
+const OPENROUTER_API_KEY = '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'; //free-tier key
+
 //const MODEL = 'openrouter/auto';
 const MODEL = 'mistralai/mistral-7b-instruct:free'
 const CLIENT_ID = '450119926324-pkkq7ic0ouirmclvpsi643a2s0tlsm30.apps.googleusercontent.com';
@@ -156,9 +158,13 @@ async function batchCategorizeEmails(emailBodies, num_cat, categories) {
 
         const rawContent = data.choices?.[0]?.message?.content?.trim();
 
-        let categories = [];
+        //let parsedCategories = [];
         try {
-            categories = JSON.parse(rawContent);
+            console.log(categories);
+            categories = JSON.parse(rawContent)
+            .map(c => (typeof c === 'string' ? c.trim() : null))
+            .filter(c => c); //removes unparse-able values
+
             console.log("✅ Parsed categories:", categories);
         } catch (e) {
             console.error("❌ Failed to parse JSON response:", rawContent, e);
@@ -187,13 +193,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 results.forEach((result, i) =>{
                     var msgID = msgIDs[i];
                     console.log(`📩 Email ${msgID} categorized as: ${result}`);
-                    chrome.storage.local.set({ [msgID]: category });  
+                    chrome.storage.local.set({ [msgID]: result });  
                 });
                 
+                chrome.tabs.query({url: "*://mail.google.com/*"}, (tabs) => {
+                    tabs.forEach(tab => {
+                        chrome.tabs.sendMessage(tab.id, {
+                            action: 'inject-labels',
+                            results: Object.fromEntries(msgIDs.map((msgID, i) => [msgID, results[i]]))
+                        }, (response) => {
+                            if (chrome.runtime.lastError) {
+                                console.warn("Could not send message to tab:", chrome.runtime.lastError.message);
+                            }
+                        });
+                    });
+                });
                 // Optional: save or apply Gmail label here
+            sendResponse({ status: 'success', result: results });
+            
             });
 
-            sendResponse({ status: 'success', result: results });
         });
 
         return true; // Needed for async response
