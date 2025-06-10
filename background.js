@@ -1,6 +1,6 @@
 //Required to authorize acces to gmail API
 //const OPENROUTER_API_KEY = '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'; //free-tier key
-const OPENROUTER_API_KEY = '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'; //free-tier key
+const OPENROUTER_API_KEY = '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'; //free-tier key
 
 //const MODEL = 'openrouter/auto';
 const MODEL = 'mistralai/mistral-7b-instruct:free'
@@ -182,39 +182,54 @@ async function batchCategorizeEmails(emailBodies, num_cat, categories) {
 
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'start-run') {
-        const categories = request.categories;
-        authenticate(async (token) => {
-            console.log('✅ Got Gmail token:', token);
+  if (request.action === 'start-run') {
+    const categories = request.categories;
 
-            fetchLatestEmails(token, async (emailBodies, msgIDs) => {
-                const results = await batchCategorizeEmails(emailBodies, categories.length, categories);
+    authenticate(async (token) => {
+      console.log('✅ Got Gmail token:', token);
 
-                results.forEach((result, i) =>{
-                    var msgID = msgIDs[i];
-                    console.log(`📩 Email ${msgID} categorized as: ${result}`);
-                    chrome.storage.local.set({ [msgID]: result });  
-                });
-                
-                chrome.tabs.query({url: "*://mail.google.com/*"}, (tabs) => {
-                    tabs.forEach(tab => {
-                        chrome.tabs.sendMessage(tab.id, {
-                            action: 'inject-labels',
-                            results: Object.fromEntries(msgIDs.map((msgID, i) => [msgID, results[i]]))
-                        }, (response) => {
-                            if (chrome.runtime.lastError) {
-                                console.warn("Could not send message to tab:", chrome.runtime.lastError.message);
-                            }
-                        });
-                    });
-                });
-                // Optional: save or apply Gmail label here
-            sendResponse({ status: 'success', result: results });
-            
+      try {
+        fetchLatestEmails(token, async (emailBodies, msgIDs) => {
+          const results = await batchCategorizeEmails(emailBodies, categories.length, categories);
+
+          if (!results) {
+            console.error("❌ Categorization failed");
+            sendResponse({ status: 'error', message: 'Categorization failed' });
+            return;
+          }
+
+          results.forEach((result, i) => {
+            var msgID = msgIDs[i];
+            console.log(`📩 Email ${msgID} categorized as: ${result}`);
+            chrome.storage.local.set({ [msgID]: result });
+          });
+
+          chrome.tabs.query({ url: "*://mail.google.com/*" }, (tabs) => {
+            tabs.forEach(tab => {
+              chrome.tabs.sendMessage(tab.id, {
+                action: 'inject-labels',
+                results: Object.fromEntries(msgIDs.map((msgID, i) => [msgID, results[i]]))
+              }, (response) => {
+                if (chrome.runtime.lastError) {
+                  console.warn("⚠️ Could not send message to tab:", chrome.runtime.lastError.message);
+                } else {
+                  console.log("✅ Sent inject-labels message to tab", tab.id);
+                }
+              });
             });
+          });
 
+          sendResponse({ status: 'success', result: results });
         });
 
-        return true; // Needed for async response
-    }
+      } catch (err) {
+        console.error("❌ Error in fetch or categorization:", err);
+        sendResponse({ status: 'error', message: err.message });
+      }
+
+    });
+
+    return true; // Keep message channel open for async sendResponse
+  }
 });
+

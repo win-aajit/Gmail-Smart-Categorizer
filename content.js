@@ -14,7 +14,7 @@ function injectCategoryButtons(results) {
     var categories = [...new Set(Object.values(results))]; //... is spread operator. Unpacks set into an array
     if(document.getElementById('smart-category-bar')) return;
 
-    var toolbar = document.querySelector('div[role="toolbar"][aria-label="Search refinement"]');
+    var toolbar = document.querySelector('div.nH.aqK');
     if (!toolbar) {
         console.warn("❌ Toolbar not found");
         return;
@@ -22,7 +22,7 @@ function injectCategoryButtons(results) {
 
     // Create a button container
     const container = document.createElement('div');
-    container.id = 'ai-category-bar';
+    container.id = 'smart-category-bar';
     container.style.display = 'flex';
     container.style.alignItems = 'center';
     container.style.marginLeft = '16px';
@@ -47,21 +47,23 @@ function injectCategoryButtons(results) {
     });
 
     // Insert container at proper position (after “More” menu)
-    const moreBtn = toolbar.querySelector('[aria-label="More"]');
+    const moreBtn = toolbar.querySelector('[aria-label="More email options"]');
     if (moreBtn && moreBtn.parentElement) {
         moreBtn.parentElement.insertAdjacentElement('afterend', container);
+        console.log("success!!!");
     } else {
         // fallback
         toolbar.appendChild(container);
+        console.log("success?");
     }
 }
 
 function waitAndInjectButtons(results) {
     const tryInject = setInterval(() => {
-        const toolbar = document.querySelector('div[role="toolbar"][aria-label="Search refinement"]');
+        const toolbar = document.querySelector('div[aria-label="Search refinement"]');
         if (toolbar) {
-        clearInterval(tryInject);
-        injectCategoryButtons(results);
+            clearInterval(tryInject);
+            injectCategoryButtons(results);
         }
     }, 500);
 }
@@ -74,4 +76,16 @@ function styleButton(btn) {
   btn.style.padding = '4px 8px';
   btn.style.cursor = 'pointer';
   btn.style.fontFamily = 'Roboto, sans-serif';
+}
+
+function labelEmails(results) {
+    document.querySelectorAll('tr.zA').forEach(row => {
+        const idMatch = row.dataset.threadId || row.getAttribute('data-legacy-thread-id');
+        if (!idMatch) return;
+
+        const category = results[idMatch];
+        if (category) {
+            row.setAttribute('data-category', category); // Tag the row with its category
+        }
+    });
 }
