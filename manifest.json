@@ -4,13 +4,11 @@
     "version": "1.0",
     "description": "Sorts Gmail emails into custom made categories or generated categories using AI.",
     "permissions":[
-        "identity",
         "storage",
         "scripting",
         "activeTab"
     ],
     "host_permissions": [
-            "https://gmail.googleapis.com/*",
             "https://openrouter.ai/",
             "https://mail.google.com/*"
     ],
@@ -21,19 +19,13 @@
             "run_at": "document_idle"            
         }
     ],
-    "oauth2": {
-        "client_id":"450119926324-pkkq7ic0ouirmclvpsi643a2s0tlsm30.apps.googleusercontent.com",
-        "scopes": [
-            "https://www.googleapis.com/auth/gmail.readonly",
-            "https://www.googleapis.com/auth/gmail.modify"
-        ]
-    },
     "background": {
         "service_worker": "background.js"
     },
     "action": {
         "default_popup": "popup.html",
-        "default_icon": "icon1.png"
+        "default_icon": "icon1.png",
+        "default_title": "Sort My Gmail"
     },
     "icons": {
         "16": "icon1.png"

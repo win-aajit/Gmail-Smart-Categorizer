@@ -59,18 +59,34 @@ document.getElementById('run').addEventListener('click', () => {
     .map(input => input.value.trim())
     .filter(c => c.length > 0);
 
+    document.getElementById('status').textContent = 'Loading . . .'
+
   if (categories.length === 0) {
-    document.getElementById('status').textContent = '⚠️ Add at least one category.';
+    document.getElementById('status').textContent = 'Add at least one category!';
     return;
   }
 
-  chrome.runtime.sendMessage(
-    { action: 'start-run', categories },
-    (response) => {
-      document.getElementById('status').textContent =
-        response?.status === 'success'
-          ? '✅ Emails sorted!'
-          : '❌ Failed to sort emails.';
-    }
-  );
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tabId = tabs[0].id;
+
+    chrome.tabs.sendMessage(
+      tabId,
+      { action: 'start-run', categories },
+      (response) => {
+        if (response?.status === 'success'){
+          document.getElementById('status').textContent = 'Sorting';
+          document.getElementById('spinner').style.display = 'inline-block';
+        }
+        else {
+          document.getElementById('status').textContent = 'Failed to sort emails.';
+          document.getElementById('spinner').style.display = 'none';
+
+        }
+        document.getElementById('status').textContent =
+          response?.status === 'success'
+            ? 'Sorting . . .'
+            : 'Failed to sort emails.';
+      }
+    );
+  });
 });

@@ -1,9 +1,8 @@
-//Required to authorize acces to gmail API
-//const OPENROUTER_API_KEY = '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'; //free-tier key
-const OPENROUTER_API_KEY = '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'; //free-tier key
 
-//const MODEL = 'openrouter/auto';
-const MODEL = 'mistralai/mistral-7b-instruct:free'
+const k = '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';
+const MODEL = 'deepseek/deepseek-chat-v3-0324:free'
+
+/*
 const CLIENT_ID = '450119926324-pkkq7ic0ouirmclvpsi643a2s0tlsm30.apps.googleusercontent.com';
 const REDIRECT_URI = `https://${chrome.runtime.id}.chromiumapp.org/`;
 const SCOPES = [
@@ -32,7 +31,6 @@ function authenticate(callback) {//oauth
             callback(accessToken);
         });
 }
-
 function fetchLatestEmails(token, onAllEmailsFetched) {
     console.log('📨 Starting fetchLatestEmails');
     var emailBodies = [];
@@ -79,7 +77,6 @@ function fetchLatestEmails(token, onAllEmailsFetched) {
     });
 }
 
-
 function fetchEmailBody(token, msgID, callback) {
     console.log(`📬 Fetching full email body for: ${msgID}`);
 
@@ -95,7 +92,7 @@ function fetchEmailBody(token, msgID, callback) {
     .catch(err => {
         console.error(`❌ Failed to fetch message ${msgID}:`, err);
     });
-}
+}*/
 
 
 function getPlainText(payload) {
@@ -114,122 +111,123 @@ function getPlainText(payload) {
 
 }
 
-async function batchCategorizeEmails(emailBodies, num_cat, categories) {
-    //prompt building
-    var prompt = `You are an email classifier. Categorize each email strictly into one of the following categories:`; //temp
-    for (category of categories) {
-        prompt += ` ${category},`;
+function splitIntoBatches(array, size){
+    const batches = [];
+    for (let i = 0; i < array.length; i += size) {
+        batches.push(array.slice(i, i + size));
     }
-    prompt += `Return ONLY a JSON array of categories corresponding to each email, in order. Remember to only to use the previously given categories. \nExample output: ["category 1", "category 2", "category 1", "category 3"]`;
+    return batches;    
+}
 
+async function batchCategorizeEmails(emails, categories) {
+    
+    const batches = splitIntoBatches(emails, 5); // Try batch size 3
+    const allResults = [];
 
-    var index = 0;
-    for(emailbody of emailBodies){
-        emailbody = emailbody.slice(0, 256) + '… [truncated]';
-        prompt += `. \nEmail ${index}: ${emailbody}`;
-        index++;
-    }
+    for (const batch of batches) {
+        const userPrompt = batch.map((email, i) =>
+        `${i + 1}. ${email.emailSnippet.replace(/\n/g, ' ')}`
+        ).join('\n');
 
-    //const truncateText = text.length > 512 ? text.slice(0, 512) + '… [truncated]' : text; //reduce amount of tokens needed
+        const systemPrompt = `
+    You are an email categorizer. Only use these categories: ${categories.join(', ')}.
+    Return a JSON array with one category per snippet in the same order. No explanations.
+    Only output JSON. No markdown. No numbering. No invented categories.
+    `;
 
-    try {
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
+        try {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
             headers: {
-                'Authorization': 'Bearer ' + OPENROUTER_API_KEY,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': `https://${chrome.runtime.id}.chromiumapp.org/`,
-                'X-Title': 'Gmail Sorter Extension'
+            "Authorization": `Bearer ${k}`,
+            "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: MODEL,
-                messages: [
-                    {
-                        role: 'user',
-                        content: prompt
-                    }
-                ],
-                max_tokens: 5000
+            model: "deepseek/deepseek-chat-v3-0324:free",
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
+            ]
             })
         });
 
-        const data = await response.json();
-        console.log('🤖 OpenRouter response:', data);
+        const raw = await response.json();
+        const content = raw.choices?.[0]?.message?.content || "";
 
-        const rawContent = data.choices?.[0]?.message?.content?.trim();
+        console.log(raw);
 
-        //let parsedCategories = [];
-        try {
-            console.log(categories);
-            categories = JSON.parse(rawContent)
-            .map(c => (typeof c === 'string' ? c.trim() : null))
-            .filter(c => c); //removes unparse-able values
+        const jsonText = content.replace(/```(json)?/g, '').trim();
+        const result = JSON.parse(jsonText);
 
-            console.log("✅ Parsed categories:", categories);
-        } catch (e) {
-            console.error("❌ Failed to parse JSON response:", rawContent, e);
-            return null;
+        if (Array.isArray(result) && result.length === batch.length) {
+            allResults.push(...result);
+        } else {
+            console.warn("⚠️ Mismatch in result length:", result);
+            allResults.push(...Array(batch.length).fill("Unknown")); // fallback
         }
-
-        return categories;  // This will be an array like ["Work", "Personal", "Spam"]
-                
-
-    } catch (err) {
-        console.error("❌ Failed to categorize email via OpenRouter:", err);
-        return null;
+        } catch (err) {
+        console.error("❌ Batch failed:", err);
+        allResults.push(...Array(batch.length).fill("Error")); // fallback
+        }
     }
+
+    return allResults;
 }
 
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'start-run') {
-    const categories = request.categories;
+    if(request.action === 'llm-classify-emails'){
+        console.log("llm-classify-emails hit");
+        (async () => { //async wrapper
+            try {
+                const emails = request.emails;
+                const categories = request.categories;
+                const msgIDs = emails.map(e => e.id);
+                const emailSnippets = emails.map(e => e.emailSnippet);
 
-    authenticate(async (token) => {
-      console.log('✅ Got Gmail token:', token);
+                const results = await batchCategorizeEmails(emails, categories);
 
-      try {
-        fetchLatestEmails(token, async (emailBodies, msgIDs) => {
-          const results = await batchCategorizeEmails(emailBodies, categories.length, categories);
-
-          if (!results) {
-            console.error("❌ Categorization failed");
-            sendResponse({ status: 'error', message: 'Categorization failed' });
-            return;
-          }
-
-          results.forEach((result, i) => {
-            var msgID = msgIDs[i];
-            console.log(`📩 Email ${msgID} categorized as: ${result}`);
-            chrome.storage.local.set({ [msgID]: result });
-          });
-
-          chrome.tabs.query({ url: "*://mail.google.com/*" }, (tabs) => {
-            tabs.forEach(tab => {
-              chrome.tabs.sendMessage(tab.id, {
-                action: 'inject-labels',
-                results: Object.fromEntries(msgIDs.map((msgID, i) => [msgID, results[i]]))
-              }, (response) => {
-                if (chrome.runtime.lastError) {
-                  console.warn("⚠️ Could not send message to tab:", chrome.runtime.lastError.message);
-                } else {
-                  console.log("✅ Sent inject-labels message to tab", tab.id);
+                if (!results || results.length !== msgIDs.length) {
+                    console.error("❌ Categorization failed or mismatched length");
+                    sendResponse({ status: 'error', message: 'Categorization failed' });
+                    return;
                 }
-              });
-            });
-          });
 
-          sendResponse({ status: 'success', result: results });
-        });
+                // Store each result
+                msgIDs.forEach((msgID, i) => {
+                    const result = results[i];
+                    console.log(`📩 Email ${msgID} categorized as: ${result}`);
+                    chrome.storage.local.set({ [msgID]: result });
+                });
 
-      } catch (err) {
-        console.error("❌ Error in fetch or categorization:", err);
-        sendResponse({ status: 'error', message: err.message });
-      }
+                // Send results back to Gmail tab(s)
+                chrome.tabs.query({ url: "*://mail.google.com/*" }, (tabs) => {
+                    const resultMap = Object.fromEntries(msgIDs.map((id, i) => [id, results[i]]));
 
-    });
+                    tabs.forEach(tab => {
+                        chrome.tabs.sendMessage(tab.id, {
+                            action: 'inject-labels',
+                            results: resultMap
+                        }, (response) => {
+                            if (chrome.runtime.lastError) {
+                                console.warn("⚠️ Could not send message to tab:", chrome.runtime.lastError.message);
+                            } else if(response?.status === 'fully-done') {
+                                console.log("✅ Sent inject-labels to tab", tab.id);
+                            }
+                            else {
+                                console.warn('Error when injecting in content.js');
+                            }
+                        });
+                    });
+                });
 
-    return true; // Keep message channel open for async sendResponse
-  }
+                sendResponse({ status: 'success', result: results });
+            } catch (err) {
+                console.error("❌ Error in LLM classification:", err);
+                sendResponse({ status: 'error', message: err.message });
+            }
+        })();
+        return true; // Keep message channel open for async sendResponse
+    }
 });
 
