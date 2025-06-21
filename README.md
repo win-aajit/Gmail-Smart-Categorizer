@@ -1,8 +1,9 @@
 # Smart Gmail Sorter
 
-This is a chrome extension that utilizes LLMs to categorize a user's Gmail emails into smart user-defined labels by scraping visible inbox content—no Gmail API or login required.
+### This is a chrome extension that utilizes LLMs to categorize a user's Gmail emails into smart user-defined labels by scraping visible inbox content
 
 ![SorterScreenshot.png](SorterScreenshot.png)
+
 ![ExtensionScreenshot.png](ExtensionScreenshot.png)
 
 ### ✨ Features
